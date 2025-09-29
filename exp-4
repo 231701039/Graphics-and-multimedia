@@ -1,0 +1,121 @@
+import matplotlib.pyplot as plt
+
+# Define constants for edges
+LEFT, RIGHT, BOTTOM, TOP = 0, 1, 2, 3
+
+def inside(p, edge, clip_win):
+    """Checks if a point p is inside the clipping window for a given edge."""
+    x, y = p
+    xmin, xmax, ymin, ymax = clip_win
+    if edge == LEFT:
+        return x >= xmin
+    elif edge == RIGHT:
+        return x <= xmax
+    elif edge == BOTTOM:
+        return y >= ymin
+    elif edge == TOP:
+        return y <= ymax
+
+def intersect(p1, p2, edge, clip_win):
+    """Calculates the intersection point of the line segment p1-p2 with the specified clipping edge."""
+    xmin, xmax, ymin, ymax = clip_win
+    x1, y1 = p1
+    x2, y2 = p2
+
+    # Slope m = (y2 - y1) / (x2 - x1)
+    # y = m(x - x1) + y1
+    # x = (y - y1)/m + x1
+
+    # Intersection calculation based on the edge
+    if edge == LEFT:
+        x = xmin
+        # Ensure division by zero is handled (vertical line)
+        if x2 - x1 != 0:
+            y = y1 + (y2 - y1) * (xmin - x1) / (x2 - x1)
+        else: # Should be on the boundary if inside check passed
+            y = p1[1] 
+    elif edge == RIGHT:
+        x = xmax
+        if x2 - x1 != 0:
+            y = y1 + (y2 - y1) * (xmax - x1) / (x2 - x1)
+        else:
+            y = p1[1]
+    elif edge == BOTTOM:
+        y = ymin
+        # Ensure division by zero is handled (horizontal line)
+        if y2 - y1 != 0:
+            x = x1 + (x2 - x1) * (ymin - y1) / (y2 - y1)
+        else:
+            x = p1[0]
+    elif edge == TOP:
+        y = ymax
+        if y2 - y1 != 0:
+            x = x1 + (x2 - x1) * (ymax - y1) / (y2 - y1)
+        else:
+            x = p1[0]
+    
+    return (x, y)
+
+def clip_polygon(polygon, clip_win):
+    """Performs polygon clipping using the Sutherland-Hodgman algorithm."""
+    output = polygon
+    for edge in [LEFT, RIGHT, BOTTOM, TOP]:
+        input_list = output
+        output = []
+        if not input_list:
+            break
+
+        # Start with the last point for the first segment (closing the loop)
+        s = input_list[-1]
+        for p in input_list:
+            p_inside = inside(p, edge, clip_win)
+            s_inside = inside(s, edge, clip_win)
+
+            if p_inside:
+                if not s_inside:
+                    # Case 1: S-out to P-in: Output intersection and P
+                    output.append(intersect(s, p, edge, clip_win))
+                # Case 4: S-in to P-in: Output P
+                output.append(p)
+            elif s_inside:
+                # Case 2: S-in to P-out: Output intersection
+                output.append(intersect(s, p, edge, clip_win))
+            # Case 3: S-out to P-out: Output nothing
+
+            # Update S for the next segment
+            s = p
+    return output
+
+def draw_polygon(points, color, label):
+    """Helper function to draw a polygon."""
+    if not points:
+        return
+    # Add the first point to close the polygon
+    x, y = zip(*(points + [points[0]]))
+    plt.plot(x, y, color=color, label=label, marker='o', linestyle='-')
+
+clip_window = (100, 300, 100, 300) # xmin, xmax, ymin, ymax
+polygon = [(50, 150), (200, 50), (350, 150), (350, 300), (250, 350), (150, 300)]
+clipped_poly = clip_polygon(polygon, clip_window)
+
+plt.figure(figsize=(10, 10))
+
+draw_polygon(polygon, 'blue', "Original Polygon")
+
+xmin, xmax, ymin, ymax = clip_window
+clip_win_points = [(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)]
+draw_polygon(clip_win_points, 'black', "Clipping Window")
+
+# Draw the clipped polygon
+draw_polygon(clipped_poly, 'red', "Clipped Polygon")
+
+plt.legend(loc='upper right')
+plt.title("Polygon Clipping using Sutherland-Hodgman Algorithm", fontsize=16)
+plt.xlabel("X-axis")
+plt.ylabel("Y-axis")
+plt.xlim(0, 400)
+plt.ylim(0, 400)
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.axis("equal")
+
+# plt.show()
